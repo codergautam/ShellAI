@@ -17,12 +17,24 @@ async function runCommand(cmd) {
   });
 }
 
+async function runPythonCode(code) {
+  console.log("Running Python code:", code);
+  return new Promise((resolve, reject) => {
+    exec(`python -c "${code}"`, (error, stdout, stderr) => {
+      if (error) {
+        resolve(error.toString());
+      }
+      resolve(stdout || "Executed Successfully");
+    });
+  });
+}
+
 async function chatWithAI() {
   let gptResponse = null;
   let history = [
     {
       role: "user",
-      content: "what is the weather in rochester mn. Run the 'end' functions when the weather has been found or cannot be found."
+      content: "run some python code that finds the current date and time. if it doesnt work stop."
     }
   ];
 
@@ -36,6 +48,14 @@ async function chatWithAI() {
           role: "function",
           name: "run_cli_command",
           content: output ?? "Executed command successfully"
+        });
+      } else if (functionCall && functionCall.name === "run_python_code") {
+        const code = JSON.parse(functionCall.arguments).code;
+        const output = await runPythonCode(code);
+        history.push({
+          role: "function",
+          name: "run_python_code",
+          content: output
         });
       } else if (functionCall && functionCall.name === "end") {
         console.log("Task completed.");
@@ -60,6 +80,20 @@ async function chatWithAI() {
                 },
               },
               required: ["command"]
+            }
+          },
+          {
+            name: "run_python_code",
+            description: "Run Python code",
+            parameters: {
+              type: "object",
+              properties: {
+                code: {
+                  type: "string",
+                  description: "The Python code to run. Must be just code, no additional formatting."
+                },
+              },
+              required: ["code"]
             }
           },
           {
